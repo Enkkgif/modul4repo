@@ -19,6 +19,7 @@ namespace IbasAPI.Controllers
         public DailyProductionController(ILogger<DailyProductionController> logger)
         {
             _logger = logger;
+            /*
             _productionRepo = new List<DailyProductionDTO>
             {
                 new DailyProductionDTO {Date = new DateTime(2020, 1, 31), Model = BikeModel.IBv1, ItemsProduced = 12},
@@ -59,13 +60,61 @@ namespace IbasAPI.Controllers
                 new DailyProductionDTO {Date = new DateTime(2020, 10, 31), Model = BikeModel.evIB200, ItemsProduced = 51},
                 new DailyProductionDTO {Date = new DateTime(2020, 11, 30), Model = BikeModel.evIB200, ItemsProduced = 61},
                 new DailyProductionDTO {Date = new DateTime(2020, 12, 31), Model = BikeModel.evIB200, ItemsProduced = 88}
-            };
+            }; */
         }
         
+        /*
         [HttpGet]
         public IEnumerable<DailyProductionDTO> Get()
         {
             return _productionRepo;
+        }
+        */
+        
+        [HttpGet]
+        public IEnumerable<DailyProductionDTO> Get()
+        {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "IBASProduction2022.csv");
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                _logger.LogError("CSV file not found at " + filePath);
+                return new List<DailyProductionDTO>();
+            }
+
+            var lines = System.IO.File.ReadAllLines(filePath).Skip(1); // spring header over
+            var list = new List<DailyProductionDTO>();
+
+            foreach (var line in lines)
+            {
+                var parts = line.Split(',');
+
+                // parts[0] = PartitionKey
+                // parts[1] = RowKey (dato)
+                // parts[2] = ProductionTime (ignoreres)
+                // parts[3] = itemsProduced
+                // parts[4] = itemsProduced@type (ignoreres)
+
+                int partitionKey = int.Parse(parts[0]);
+                DateTime date = DateTime.Parse(parts[1]);
+                int produced = int.Parse(parts[3]);
+
+                BikeModel model = BikeModel.undefined;
+                if (partitionKey == 1) model = BikeModel.IBv1;
+                else if (partitionKey == 2) model = BikeModel.evIB100;
+                else if (partitionKey == 3) model = BikeModel.evIB200;
+
+                var dto = new DailyProductionDTO
+                {
+                    Date = date,
+                    Model = model,
+                    ItemsProduced = produced
+                };
+
+                list.Add(dto);
+            }
+
+            return list;
         }
     }
 }
